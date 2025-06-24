@@ -1,35 +1,58 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Upload, Search, FileText, Phone, Mail } from "lucide-react"
-import { format } from "date-fns"
-import Link from "next/link"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  CalendarIcon,
+  Upload,
+  Search,
+  FileText,
+  Phone,
+  Mail,
+} from "lucide-react";
+import { format } from "date-fns";
+import Link from "next/link";
 
 const products = [
-  { id: 1, name: "Smartphone Pro X" },
-  { id: 2, name: "Laptop Ultra 15" },
-  { id: 3, name: "Wireless Headphones" },
-  { id: 4, name: "Smart Watch Series 5" },
-  { id: 5, name: "Tablet Air 10" },
-]
+  { id: 1, name: "Roti Cokelat Premium" },
+  { id: 2, name: "Roti Tawar Jumbo" },
+  { id: 3, name: "Roti Keju Spesial" },
+  { id: 4, name: "Roti Sosis Panggang" },
+  { id: 5, name: "Roti Pisang Cokelat" },
+];
 
 const categories = [
-  { id: 1, name: "Cacat Produk" },
-  { id: 2, name: "Masalah Pengiriman" },
-  { id: 3, name: "Layanan Pelanggan" },
-  { id: 4, name: "Masalah Penagihan" },
-  { id: 5, name: "Klaim Garansi" },
-]
+  { id: 1, name: "Rasa" },
+  { id: 2, name: "Kemasan" },
+  { id: 3, name: "Keterlambatan" },
+  { id: 4, name: "Pelayanan Pegawai" },
+  { id: 5, name: "Kesalahan Pesanan" },
+];
 
 export default function HomePage() {
   const [formData, setFormData] = useState({
@@ -41,31 +64,31 @@ export default function HomePage() {
     incidentDate: undefined as Date | undefined,
     description: "",
     files: [] as File[],
-  })
-  const [trackingCode, setTrackingCode] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [generatedCode, setGeneratedCode] = useState("")
+  });
+  const [trackingCode, setTrackingCode] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    e.preventDefault();
+    setIsSubmitting(true);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const code = `CMP-${Date.now().toString().slice(-6)}`
-    setGeneratedCode(code)
-    setSubmitted(true)
-    setIsSubmitting(false)
-  }
+    const code = `CMP-${Date.now().toString().slice(-6)}`;
+    setGeneratedCode(code);
+    setSubmitted(true);
+    setIsSubmitting(false);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFormData((prev) => ({
         ...prev,
         files: Array.from(e.target.files || []),
-      }))
+      }));
     }
-  }
+  };
 
   if (submitted) {
     return (
@@ -75,20 +98,26 @@ export default function HomePage() {
             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <FileText className="w-8 h-8 text-green-600" />
             </div>
-            <CardTitle className="text-2xl text-green-600">Pengaduan Terkirim!</CardTitle>
+            <CardTitle className="text-2xl text-green-600">
+              Pengaduan Terkirim!
+            </CardTitle>
             <CardDescription>
               Pengaduan Anda berhasil dikirim dan mendapatkan kode pelacakan:
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <div className="bg-gray-100 p-4 rounded-lg">
-              <p className="text-2xl font-bold text-gray-800">{generatedCode}</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {generatedCode}
+              </p>
             </div>
-            <p className="text-sm text-gray-600">Silakan simpan kode ini untuk melacak status pengaduan Anda.</p>
+            <p className="text-sm text-gray-600">
+              Silakan simpan kode ini untuk melacak status pengaduan Anda.
+            </p>
             <div className="flex gap-2">
               <Button
                 onClick={() => {
-                  setSubmitted(false)
+                  setSubmitted(false);
                   setFormData({
                     fullName: "",
                     phone: "",
@@ -98,7 +127,7 @@ export default function HomePage() {
                     incidentDate: undefined,
                     description: "",
                     files: [],
-                  })
+                  });
                 }}
                 variant="outline"
                 className="flex-1"
@@ -112,7 +141,7 @@ export default function HomePage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -147,7 +176,8 @@ export default function HomePage() {
                 Kirim Pengaduan
               </CardTitle>
               <CardDescription>
-                Isi formulir berikut untuk mengajukan pengaduan. Anda akan menerima kode pelacakan untuk memantau statusnya.
+                Isi formulir berikut untuk mengajukan pengaduan. Anda akan
+                menerima kode pelacakan untuk memantau statusnya.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -158,7 +188,12 @@ export default function HomePage() {
                     <Input
                       id="fullName"
                       value={formData.fullName}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, fullName: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          fullName: e.target.value,
+                        }))
+                      }
                       required
                     />
                   </div>
@@ -173,7 +208,12 @@ export default function HomePage() {
                           type="tel"
                           className="pl-10"
                           value={formData.phone}
-                          onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              phone: e.target.value,
+                            }))
+                          }
                           required
                         />
                       </div>
@@ -187,7 +227,12 @@ export default function HomePage() {
                           type="email"
                           className="pl-10"
                           value={formData.email}
-                          onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              email: e.target.value,
+                            }))
+                          }
                           required
                         />
                       </div>
@@ -199,14 +244,19 @@ export default function HomePage() {
                       <Label htmlFor="product">Produk *</Label>
                       <Select
                         value={formData.productId}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, productId: value }))}
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({ ...prev, productId: value }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih produk" />
                         </SelectTrigger>
                         <SelectContent>
                           {products.map((product) => (
-                            <SelectItem key={product.id} value={product.id.toString()}>
+                            <SelectItem
+                              key={product.id}
+                              value={product.id.toString()}
+                            >
                               {product.name}
                             </SelectItem>
                           ))}
@@ -217,14 +267,22 @@ export default function HomePage() {
                       <Label htmlFor="category">Kategori Pengaduan *</Label>
                       <Select
                         value={formData.categoryId}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, categoryId: value }))}
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            categoryId: value,
+                          }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih kategori" />
                         </SelectTrigger>
                         <SelectContent>
                           {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
+                            <SelectItem
+                              key={category.id}
+                              value={category.id.toString()}
+                            >
                               {category.name}
                             </SelectItem>
                           ))}
@@ -237,16 +295,26 @@ export default function HomePage() {
                     <Label>Tanggal Kejadian *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.incidentDate ? format(formData.incidentDate, "PPP") : "Pilih tanggal"}
+                          {formData.incidentDate
+                            ? format(formData.incidentDate, "PPP")
+                            : "Pilih tanggal"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
                         <Calendar
                           mode="single"
                           selected={formData.incidentDate}
-                          onSelect={(date) => setFormData((prev) => ({ ...prev, incidentDate: date }))}
+                          onSelect={(date) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              incidentDate: date,
+                            }))
+                          }
                           initialFocus
                         />
                       </PopoverContent>
@@ -259,7 +327,12 @@ export default function HomePage() {
                       id="description"
                       placeholder="Jelaskan masalah Anda secara rinci..."
                       value={formData.description}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
                       rows={4}
                       required
                     />
@@ -287,7 +360,9 @@ export default function HomePage() {
                           </label>
                           <p className="pl-1">atau seret ke sini</p>
                         </div>
-                        <p className="text-xs text-gray-500">PNG, JPG, PDF maksimal 10MB per file</p>
+                        <p className="text-xs text-gray-500">
+                          PNG, JPG, PDF maksimal 10MB per file
+                        </p>
                       </div>
                     </div>
                     {formData.files.length > 0 && (
@@ -303,7 +378,11 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
                   {isSubmitting ? "Mengirim..." : "Kirim Pengaduan"}
                 </Button>
               </form>
@@ -318,7 +397,9 @@ export default function HomePage() {
                   <Search className="w-5 h-5" />
                   Lacak Pengaduan Anda
                 </CardTitle>
-                <CardDescription>Masukkan kode pelacakan untuk memeriksa status pengaduan Anda.</CardDescription>
+                <CardDescription>
+                  Masukkan kode pelacakan untuk memeriksa status pengaduan Anda.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -349,7 +430,9 @@ export default function HomePage() {
                   </div>
                   <div>
                     <h4 className="font-medium">Ajukan Pengaduan</h4>
-                    <p className="text-sm text-gray-600">Isi formulir dengan detail masalah Anda</p>
+                    <p className="text-sm text-gray-600">
+                      Isi formulir dengan detail masalah Anda
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -358,7 +441,9 @@ export default function HomePage() {
                   </div>
                   <div>
                     <h4 className="font-medium">Dapatkan Kode Pelacakan</h4>
-                    <p className="text-sm text-gray-600">Terima kode unik untuk melacak pengaduan</p>
+                    <p className="text-sm text-gray-600">
+                      Terima kode unik untuk melacak pengaduan
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -367,7 +452,9 @@ export default function HomePage() {
                   </div>
                   <div>
                     <h4 className="font-medium">Pantau Proses</h4>
-                    <p className="text-sm text-gray-600">Lihat pembaruan status dan tanggapan</p>
+                    <p className="text-sm text-gray-600">
+                      Lihat pembaruan status dan tanggapan
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -376,5 +463,5 @@ export default function HomePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
