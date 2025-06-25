@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,34 +37,45 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
+import { handleError } from "@/helper";
+import axios from "axios";
+import toast from "react-hot-toast";
 
-const products = [
-  { id: 1, name: "Roti Cokelat Premium" },
-  { id: 2, name: "Roti Tawar Jumbo" },
-  { id: 3, name: "Roti Keju Spesial" },
-  { id: 4, name: "Roti Sosis Panggang" },
-  { id: 5, name: "Roti Pisang Cokelat" },
-];
-
-const categories = [
-  { id: 1, name: "Rasa" },
-  { id: 2, name: "Kemasan" },
-  { id: 3, name: "Keterlambatan" },
-  { id: 4, name: "Pelayanan Pegawai" },
-  { id: 5, name: "Kesalahan Pesanan" },
-];
+interface Product {
+  id: number;
+  product_name: string;
+}
+interface Category {
+  id: number;
+  category_name: string;
+}
+interface ComplaintForm {
+  user_id: number | null;
+  product_id: number | null;
+  category_id: number | null;
+  customer_name: string;
+  email: string;
+  contact: string;
+  description: string;
+  image?: string; // base64 string (opsional)
+  date_occurrence: string; // dalam format YYYY-MM-DD
+  status: string;
+}
 
 export default function HomePage() {
-  const [formData, setFormData] = useState({
-    fullName: "",
-    phone: "",
+  const [formData, setFormData] = useState<ComplaintForm>({
+    user_id: null,
+    product_id: null,
+    category_id: null,
+    customer_name: "",
+    contact: "",
     email: "",
-    productId: "",
-    categoryId: "",
-    incidentDate: undefined as Date | undefined,
     description: "",
-    files: [] as File[],
+    image: "",
+    date_occurrence: "",
+    status: "Masuk",
   });
+  // console.log(formData, "formData");
   const [trackingCode, setTrackingCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -82,14 +93,117 @@ export default function HomePage() {
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFormData((prev) => ({
-        ...prev,
-        files: Array.from(e.target.files || []),
-      }));
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const fileArray = Array.from(files);
+
+      const promises: Promise<string>[] = fileArray.map((file: File) => {
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => {
+            if (typeof reader.result === "string") {
+              resolve(reader.result);
+            } else {
+              reject("Failed to convert file to base64.");
+            }
+          };
+          reader.onerror = (error) => reject(error);
+        });
+      });
+
+      Promise.all(promises).then((base64Files: string[]) => {
+        setFormData((prev) => ({
+          ...prev,
+          image: base64Files[0], // hanya ambil file pertama
+        }));
+      });
     }
   };
 
+  const [datasProduct, setDatasProduct] = useState<Product[]>([]);
+  const [datasCategory, setDatasCategody] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const getDatasProduct = async () => {
+    setIsLoading(true);
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/products`;
+      const response = await axios.get(url);
+      // console.log("Response diterima:", response?.data); // Debug 3
+      setIsLoading(false);
+      setDatasProduct(response.data);
+    } catch (err) {
+      console.error("Error saat fetching:", err); // Debug 4
+      setDatasProduct([]);
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
+  const getDatasCategory = async () => {
+    setIsLoading(true);
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/categories`;
+      const response = await axios.get(url);
+      // console.log("Response diterima:", response?.data); // Debug 3
+      setIsLoading(false);
+      setDatasCategody(response.data);
+    } catch (err) {
+      console.error("Error saat fetching:", err); // Debug 4
+      setDatasCategody([]);
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
+
+  const handleSubmitComplaints = async () => {
+    setIsLoading(true);
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/complaints`;
+      const response = await axios.post(url, {
+        user_id: formData?.user_id,
+        product_id: formData?.product_id,
+        category_id: formData?.category_id,
+        customer_name: formData?.customer_name,
+        contact: formData?.contact,
+        email: formData?.email,
+        description: formData?.description,
+        image: formData?.image,
+        date_occurrence: formData?.date_occurrence,
+        status: "Masuk",
+      });
+      setFormData({
+        user_id: null,
+        product_id: null,
+        category_id: null,
+        customer_name: "",
+        contact: "",
+        email: "",
+        description: "",
+        image: "",
+        date_occurrence: "",
+        status: "",
+      });
+      setSubmitted(true);
+      toast.success("Pengaduan berhasil");
+      // console.log("Response diterima:", response?.data); // Debug 3
+      setIsLoading(false);
+    } catch (err) {
+      setSubmitted(false);
+      console.error("Error saat fetching:", err); // Debug 4
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
+
+  useEffect(() => {
+    getDatasProduct();
+    getDatasCategory();
+  }, []);
+  // console.log(
+  //   process.env.NEXT_PUBLIC_API_URL,
+  //   "process.env.NEXT_PUBLIC_API_URL"
+  // );
   if (submitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -119,14 +233,16 @@ export default function HomePage() {
                 onClick={() => {
                   setSubmitted(false);
                   setFormData({
-                    fullName: "",
-                    phone: "",
+                    user_id: null,
+                    product_id: null,
+                    category_id: null,
+                    customer_name: "",
+                    contact: "",
                     email: "",
-                    productId: "",
-                    categoryId: "",
-                    incidentDate: undefined,
                     description: "",
-                    files: [],
+                    image: "",
+                    date_occurrence: "",
+                    status: "",
                   });
                 }}
                 variant="outline"
@@ -146,7 +262,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white shadow-sm border-b sticky top-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
@@ -181,17 +297,17 @@ export default function HomePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <Label htmlFor="fullName">Nama Lengkap *</Label>
                     <Input
                       id="fullName"
-                      value={formData.fullName}
+                      value={formData.customer_name}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          fullName: e.target.value,
+                          customer_name: e.target.value,
                         }))
                       }
                       required
@@ -207,11 +323,11 @@ export default function HomePage() {
                           id="phone"
                           type="tel"
                           className="pl-10"
-                          value={formData.phone}
+                          value={formData.contact}
                           onChange={(e) =>
                             setFormData((prev) => ({
                               ...prev,
-                              phone: e.target.value,
+                              contact: e.target.value,
                             }))
                           }
                           required
@@ -243,21 +359,24 @@ export default function HomePage() {
                     <div>
                       <Label htmlFor="product">Produk *</Label>
                       <Select
-                        value={formData.productId}
+                        value={formData.product_id?.toString() || ""}
                         onValueChange={(value) =>
-                          setFormData((prev) => ({ ...prev, productId: value }))
+                          setFormData((prev) => ({
+                            ...prev,
+                            product_id: parseInt(value),
+                          }))
                         }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih produk" />
                         </SelectTrigger>
                         <SelectContent>
-                          {products.map((product) => (
+                          {datasProduct.map((product) => (
                             <SelectItem
-                              key={product.id}
-                              value={product.id.toString()}
+                              key={product?.id}
+                              value={product?.id.toString()}
                             >
-                              {product.name}
+                              {product?.product_name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -266,11 +385,11 @@ export default function HomePage() {
                     <div>
                       <Label htmlFor="category">Kategori Pengaduan *</Label>
                       <Select
-                        value={formData.categoryId}
+                        value={formData.category_id?.toString() || ""}
                         onValueChange={(value) =>
                           setFormData((prev) => ({
                             ...prev,
-                            categoryId: value,
+                            category_id: parseInt(value),
                           }))
                         }
                       >
@@ -278,12 +397,12 @@ export default function HomePage() {
                           <SelectValue placeholder="Pilih kategori" />
                         </SelectTrigger>
                         <SelectContent>
-                          {categories.map((category) => (
+                          {datasCategory.map((category) => (
                             <SelectItem
-                              key={category.id}
-                              value={category.id.toString()}
+                              key={category?.id}
+                              value={category?.id.toString()}
                             >
-                              {category.name}
+                              {category?.category_name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -300,22 +419,27 @@ export default function HomePage() {
                           className="w-full justify-start text-left font-normal"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.incidentDate
-                            ? format(formData.incidentDate, "PPP")
+                          {formData.date_occurrence
+                            ? format(new Date(formData.date_occurrence), "PPP")
                             : "Pilih tanggal"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
                         <Calendar
                           mode="single"
-                          selected={formData.incidentDate}
+                          selected={
+                            formData.date_occurrence
+                              ? new Date(formData.date_occurrence)
+                              : undefined
+                          }
                           onSelect={(date) =>
                             setFormData((prev) => ({
                               ...prev,
-                              incidentDate: date,
+                              date_occurrence: date
+                                ? format(date, "yyyy-MM-dd")
+                                : "",
                             }))
                           }
-                          initialFocus
                         />
                       </PopoverContent>
                     </Popover>
@@ -353,6 +477,7 @@ export default function HomePage() {
                               id="files"
                               type="file"
                               multiple
+                              // value={formData.image}
                               className="sr-only"
                               onChange={handleFileUpload}
                               accept="image/*,.pdf,.doc,.docx"
@@ -365,27 +490,18 @@ export default function HomePage() {
                         </p>
                       </div>
                     </div>
-                    {formData.files.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-sm text-gray-600">File terpilih:</p>
-                        <ul className="text-sm text-gray-500">
-                          {formData.files.map((file, index) => (
-                            <li key={index}>• {file.name}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 </div>
 
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={isSubmitting}
+                  onClick={handleSubmitComplaints}
+                  disabled={isSubmitting || isLoading}
                 >
                   {isSubmitting ? "Mengirim..." : "Kirim Pengaduan"}
                 </Button>
-              </form>
+              </div>
             </CardContent>
           </Card>
 
@@ -402,7 +518,7 @@ export default function HomePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
+                {/* <div>
                   <Label htmlFor="trackingCode">Kode Pelacakan</Label>
                   <Input
                     id="trackingCode"
@@ -410,9 +526,12 @@ export default function HomePage() {
                     value={trackingCode}
                     onChange={(e) => setTrackingCode(e.target.value)}
                   />
-                </div>
+                </div> */}
                 <Link href={`/track?code=${trackingCode}`}>
-                  <Button className="w-full" disabled={!trackingCode}>
+                  <Button
+                    className="w-full"
+                    // disabled={!trackingCode}
+                  >
                     Lacak Status
                   </Button>
                 </Link>
