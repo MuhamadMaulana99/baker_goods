@@ -135,8 +135,6 @@ export default function ComplaintsManagement() {
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<any>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [complaints, setComplaints] = useState<any>([]);
-  const [filteredComplaints, setFilteredComplaints] = useState<any>([]);
   const [datasCategory, setDatasCategody] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -145,7 +143,7 @@ export default function ComplaintsManagement() {
   const [responseText, setResponseText] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  console.log(responseText, "responseText");
+  // console.log(responseText, "responseText");
 
   const debouncedSearchTerm = useDebounce(searchTerm, 1000);
 

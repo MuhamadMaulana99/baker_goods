@@ -32,13 +32,27 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { encryptStorage } from "@/config/encryptStorage";
+import moment from "moment";
+import fetchApi from "@/config/fetchApi";
+import axios from "axios";
+import { handleError } from "@/helper";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import toast from "react-hot-toast";
 
 // Data produk contoh
 const mockProducts = [
   {
     id: 1,
     name: "Roti Cokelat Premium",
-    description: "Roti manis isi cokelat berkualitas tinggi dengan tekstur lembut",
+    description:
+      "Roti manis isi cokelat berkualitas tinggi dengan tekstur lembut",
     price: 15000,
     category: "Roti Manis",
     sku: "RCP-001",
@@ -81,48 +95,112 @@ const mockProducts = [
     createdAt: "2024-01-05",
   },
 ];
-
-
+interface Category {
+  id: number;
+  category_name: string;
+}
 export default function ProductsManagement() {
+  const userInfo = encryptStorage.getItem("info");
   const router = useRouter();
   const [products, setProducts] = useState(mockProducts);
-  const [filteredProducts, setFilteredProducts] = useState(mockProducts);
+  const [isLoading, setIsLoading] = useState(false);
+  const [data, setData] = useState<any>([]);
+  const [datasCategory, setDatasCategody] = useState<Category[]>([]);
+  const [categoryFilter, setcategoryFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    category: "",
-    sku: "",
+  const [formData, setFormData] = useState<any>({
+    product_name: "",
+    category_id: "",
   });
 
   useEffect(() => {
-    const auth = localStorage.getItem("adminAuth");
-    if (auth === "true") {
+    if (userInfo?.token) {
       setIsAuthenticated(true);
     } else {
       router.push("/admin");
     }
-  }, [router]);
+  }, [userInfo]);
+
+  const getAllProducts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetchApi().get(`/products`);
+      // console.log(response, "sss");
+      setData(response?.data);
+      setIsLoading(false);
+    } catch (error) {
+      setIsLoading(false);
+      console.error("❌ Gagal ambil semua produk:", error);
+      throw error;
+    }
+  };
+
+  const getDatasCategory = async () => {
+    setIsLoading(true);
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/categories`;
+      const response = await axios.get(url);
+      // console.log("Response diterima:", response?.data); // Debug 3
+      setIsLoading(false);
+      setDatasCategody(response.data);
+    } catch (err) {
+      console.error("Error saat fetching:", err); // Debug 4
+      setDatasCategody([]);
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
+  // console.log(categoryFilter, categoryFilter);
+  const handleSubmitProduct = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetchApi().post(`/products`, {
+        category_id: categoryFilter,
+        product_name: formData?.product_name,
+      });
+
+      setFormData({
+        category_id: null,
+        product_name: null,
+      });
+      setIsAddDialogOpen(false);
+      toast.success("Product berhasil di Tambahkan");
+      // console.log("Response diterima:", response?.data); // Debug 3
+      setIsLoading(false);
+    } catch (err) {
+      setIsAddDialogOpen(false);
+      console.error("Error saat fetching:", err); // Debug 4
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
+
+  const handleDeleteComplaint = async (complaint: number) => {
+    setIsLoading(true);
+    try {
+      const response = await fetchApi().delete(
+        `${process.env.NEXT_PUBLIC_API_URL}/products/${complaint}`
+      );
+      // console.log("Response diterima:", response?.data); // Debug 3
+      getAllProducts();
+      toast.success("Berhasil Menghapus");
+      setIsLoading(false);
+    } catch (err) {
+      console.error("Error saat fetching:", err); // Debug 4
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
+  // console.log(formData, "formData");
 
   useEffect(() => {
-    if (searchTerm) {
-      setFilteredProducts(
-        products.filter(
-          (product) =>
-            product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-    } else {
-      setFilteredProducts(products);
-    }
-  }, [searchTerm, products]);
+    getAllProducts();
+    getDatasCategory();
+  }, []);
 
   if (!isAuthenticated) {
     return <div>Memuat...</div>;
@@ -130,56 +208,45 @@ export default function ProductsManagement() {
 
   const resetForm = () => {
     setFormData({
-      name: "",
-      description: "",
-      price: "",
-      category: "",
-      sku: "",
+      product_name: "",
+      category_id: "",
     });
   };
 
-  const handleAddProduct = () => {
-    const newProduct = {
-      id: Date.now(),
-      ...formData,
-      price: Number.parseFloat(formData.price),
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setProducts((prev) => [...prev, newProduct]);
-    resetForm();
-    setIsAddDialogOpen(false);
-  };
+  const handleEditProduct = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetchApi().post(`/products/${categoryFilter}`, {
+        category_id: categoryFilter,
+        product_name: formData?.product_name,
+      });
 
-  const handleEditProduct = () => {
-    setProducts((prev) =>
-      prev.map((product) =>
-        product.id === selectedProduct.id
-          ? {
-              ...product,
-              ...formData,
-              price: Number.parseFloat(formData.price),
-            }
-          : product
-      )
-    );
+      setFormData({
+        category_id: null,
+        product_name: null,
+      });
+      setIsAddDialogOpen(false);
+      toast.success("Product berhasil di Tambahkan");
+      // console.log("Response diterima:", response?.data); // Debug 3
+      setIsLoading(false);
+    } catch (err) {
+      setIsAddDialogOpen(false);
+      setIsLoading(false);
+      handleError(err);
+    }
     resetForm();
     setIsEditDialogOpen(false);
     setSelectedProduct(null);
   };
-
-  const handleDeleteProduct = (productId: number) => {
-    setProducts((prev) => prev.filter((product) => product.id !== productId));
-  };
-
+  // console.log(formData, "ff");
   const openEditDialog = (product: any) => {
+    // console.log(product, "pp");
     setSelectedProduct(product);
     setFormData({
-      name: product.name,
-      description: product.description,
-      price: product.price.toString(),
-      category: product.category,
-      sku: product.sku,
+      product_name: product.product_name,
+      catgory_id: product.category,
     });
+    setcategoryFilter(product.category?.category_nama);
     setIsEditDialogOpen(true);
   };
 
@@ -239,77 +306,38 @@ export default function ProductsManagement() {
                       <Label htmlFor="name">Nama Produk</Label>
                       <Input
                         id="name"
-                        value={formData.name}
+                        value={formData.product_name}
                         onChange={(e) =>
-                          setFormData((prev) => ({
+                          setFormData((prev: any) => ({
                             ...prev,
-                            name: e.target.value,
+                            product_name: e.target.value,
                           }))
                         }
                         placeholder="Masukkan nama produk"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="sku">SKU</Label>
-                      <Input
-                        id="sku"
-                        value={formData.sku}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            sku: e.target.value,
-                          }))
-                        }
-                        placeholder="Masukkan SKU"
-                      />
-                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="price">Harga</Label>
-                        <Input
-                          id="price"
-                          type="number"
-                          step="0.01"
-                          value={formData.price}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              price: e.target.value,
-                            }))
-                          }
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="category">Kategori</Label>
-                        <Input
-                          id="category"
-                          value={formData.category}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              category: e.target.value,
-                            }))
-                          }
-                          placeholder="Masukkan kategori"
-                        />
+                        <Label htmlFor="priority">Kategori</Label>
+                        <Select
+                          value={categoryFilter}
+                          onValueChange={setcategoryFilter}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih Kategori" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Semua Kategori</SelectItem>
+                            {datasCategory?.map((item: any) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                {item.category_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                    <div>
-                      <Label htmlFor="description">Deskripsi</Label>
-                      <Textarea
-                        id="description"
-                        value={formData.description}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            description: e.target.value,
-                          }))
-                        }
-                        placeholder="Masukkan deskripsi produk"
-                        rows={3}
-                      />
-                    </div>
+
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="outline"
@@ -317,7 +345,9 @@ export default function ProductsManagement() {
                       >
                         Batal
                       </Button>
-                      <Button onClick={handleAddProduct}>Tambah Produk</Button>
+                      <Button onClick={handleSubmitProduct}>
+                        Tambah Produk
+                      </Button>
                     </div>
                   </div>
                 </DialogContent>
@@ -343,7 +373,7 @@ export default function ProductsManagement() {
 
         {/* Daftar Produk */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map((product) => (
+          {data?.map((product: any) => (
             <Card
               key={product.id}
               className="hover:shadow-md transition-shadow"
@@ -351,10 +381,9 @@ export default function ProductsManagement() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-lg">{product.name}</CardTitle>
-                    <CardDescription className="text-sm text-gray-500">
-                      SKU: {product.sku}
-                    </CardDescription>
+                    <CardTitle className="text-lg">
+                      {product?.product_name}
+                    </CardTitle>
                   </div>
                   <div className="flex gap-1">
                     <Button
@@ -367,7 +396,7 @@ export default function ProductsManagement() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteProduct(product.id)}
+                      onClick={() => handleDeleteComplaint(product.id)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -375,28 +404,18 @@ export default function ProductsManagement() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-gray-600 text-sm line-clamp-3">
-                  {product.description}
-                </p>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Harga:</span>
-                    <span className="font-semibold flex items-center gap-1">
-                      <DollarSign className="w-4 h-4" />
-                      {product.price.toFixed(2)}
-                    </span>
-                  </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Kategori:</span>
                     <span className="text-sm font-medium">
-                      {product.category}
+                      {product?.category?.category_name}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Ditambahkan:</span>
                     <span className="text-sm flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
-                      {product.createdAt}
+                      {moment(product?.createdAt).format("L")}
                     </span>
                   </div>
                 </div>
@@ -405,7 +424,7 @@ export default function ProductsManagement() {
           ))}
         </div>
 
-        {filteredProducts.length === 0 && (
+        {data?.length === 0 && (
           <Card>
             <CardContent className="text-center py-8">
               <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -433,71 +452,38 @@ export default function ProductsManagement() {
                 <Label htmlFor="edit-name">Nama Produk</Label>
                 <Input
                   id="edit-name"
-                  value={formData.name}
+                  value={formData.product_name}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      product_name: e.target.value,
+                    }))
                   }
                   placeholder="Masukkan nama produk"
                 />
               </div>
-              <div>
-                <Label htmlFor="edit-sku">SKU</Label>
-                <Input
-                  id="edit-sku"
-                  value={formData.sku}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, sku: e.target.value }))
-                  }
-                  placeholder="Masukkan SKU"
-                />
-              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="edit-price">Harga</Label>
-                  <Input
-                    id="edit-price"
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        price: e.target.value,
-                      }))
-                    }
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-category">Kategori</Label>
-                  <Input
-                    id="edit-category"
-                    value={formData.category}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        category: e.target.value,
-                      }))
-                    }
-                    placeholder="Masukkan kategori"
-                  />
+                  <Label htmlFor="priority">Kategori</Label>
+                  <Select
+                    value={categoryFilter}
+                    onValueChange={setcategoryFilter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih Kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Kategori</SelectItem>
+                      {datasCategory?.map((item) => (
+                        <SelectItem key={item.id} value={String(item.id)}>
+                          {item.category_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-              <div>
-                <Label htmlFor="edit-description">Deskripsi</Label>
-                <Textarea
-                  id="edit-description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  placeholder="Masukkan deskripsi produk"
-                  rows={3}
-                />
-              </div>
+
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
