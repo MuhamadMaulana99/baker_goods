@@ -31,7 +31,7 @@ export const handleError = (error: any): void => {
   const showNotifyOnce = (title: string, description: string): void => {
     if (isErrorNotified) return;
     isErrorNotified = true;
-    toast.error("Gagal");
+    toast.error(message || "Server Error");
     // Notify.error({ title, description, duration: 3000 });
 
     clearTimeout(errorTimeout);

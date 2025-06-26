@@ -37,151 +37,8 @@ import fetchApi from "@/config/fetchApi";
 import { handleError } from "@/helper";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { Select } from "@radix-ui/react-select";
-import {
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-const kategoriPengaduan = [
-  "Rasa",
-  "Kemasan",
-  "Keterlambatan",
-  "Kualitas Roti",
-  "Pelayanan Pegawai",
-  "Kesalahan Pesanan",
-  "Harga Tidak Sesuai",
-  "Kebersihan Toko",
-  "Promo / Diskon Bermasalah",
-  "Stok Sering Kosong",
-  "Waktu Pelayanan Lama",
-  "Pengemasan Kurang Aman",
-  "Pengiriman Bermasalah",
-  "Perbedaan Tampilan Produk",
-  "Lainnya",
-];
 // Data kategori contoh
-const mockCategories = [
-  {
-    id: 1,
-    name: "Rasa",
-    description:
-      "Keluhan terkait rasa roti yang kurang enak, hambar, atau tidak sesuai ekspektasi",
-    complaintsCount: 45,
-    createdAt: "2024-01-01",
-  },
-  {
-    id: 2,
-    name: "Kemasan",
-    description:
-      "Masalah pada kemasan roti seperti sobek, kotor, atau tidak higienis",
-    complaintsCount: 32,
-    createdAt: "2024-01-02",
-  },
-  {
-    id: 3,
-    name: "Keterlambatan",
-    description:
-      "Pengiriman roti terlambat atau tidak sesuai waktu yang dijanjikan",
-    complaintsCount: 28,
-    createdAt: "2024-01-03",
-  },
-  {
-    id: 4,
-    name: "Kualitas Roti",
-    description: "Roti keras, basi, atau tidak segar saat diterima",
-    complaintsCount: 15,
-    createdAt: "2024-01-04",
-  },
-  {
-    id: 5,
-    name: "Pelayanan Pegawai",
-    description:
-      "Pegawai kurang ramah, tidak membantu, atau bersikap tidak profesional",
-    complaintsCount: 8,
-    createdAt: "2024-01-05",
-  },
-  {
-    id: 6,
-    name: "Kesalahan Pesanan",
-    description:
-      "Pesanan tidak sesuai, jumlah roti salah, atau jenis roti berbeda",
-    complaintsCount: 18,
-    createdAt: "2024-01-06",
-  },
-  {
-    id: 7,
-    name: "Harga Tidak Sesuai",
-    description:
-      "Harga roti tidak sesuai dengan yang tertera di toko atau promosi",
-    complaintsCount: 12,
-    createdAt: "2024-01-07",
-  },
-  {
-    id: 8,
-    name: "Kebersihan Toko",
-    description:
-      "Toko kotor, berdebu, atau tidak menjaga kebersihan lingkungan",
-    complaintsCount: 9,
-    createdAt: "2024-01-08",
-  },
-  {
-    id: 9,
-    name: "Promo / Diskon Bermasalah",
-    description:
-      "Promo tidak berlaku, diskon tidak sesuai, atau informasi promo membingungkan",
-    complaintsCount: 10,
-    createdAt: "2024-01-09",
-  },
-  {
-    id: 10,
-    name: "Stok Sering Kosong",
-    description: "Jenis roti tertentu sering tidak tersedia atau cepat habis",
-    complaintsCount: 14,
-    createdAt: "2024-01-10",
-  },
-  {
-    id: 11,
-    name: "Waktu Pelayanan Lama",
-    description:
-      "Antrian panjang atau proses pelayanan yang memakan waktu terlalu lama",
-    complaintsCount: 20,
-    createdAt: "2024-01-11",
-  },
-  {
-    id: 12,
-    name: "Pengemasan Kurang Aman",
-    description:
-      "Pengemasan tidak melindungi roti dengan baik hingga menyebabkan kerusakan",
-    complaintsCount: 7,
-    createdAt: "2024-01-12",
-  },
-  {
-    id: 13,
-    name: "Pengiriman Bermasalah",
-    description:
-      "Roti datang dalam kondisi rusak atau alamat pengiriman tidak sesuai",
-    complaintsCount: 11,
-    createdAt: "2024-01-13",
-  },
-  {
-    id: 14,
-    name: "Perbedaan Tampilan Produk",
-    description:
-      "Roti yang diterima berbeda bentuk atau ukuran dengan gambar di katalog",
-    complaintsCount: 6,
-    createdAt: "2024-01-14",
-  },
-  {
-    id: 15,
-    name: "Lainnya",
-    description: "Keluhan lain yang tidak termasuk dalam kategori di atas",
-    complaintsCount: 5,
-    createdAt: "2024-01-15",
-  },
-];
+
 interface Category {
   id: number;
   category_name: string;
@@ -189,11 +46,9 @@ interface Category {
 export default function CategoriesManagement() {
   const userInfo = encryptStorage.getItem("info");
   const router = useRouter();
-  const [categories, setCategories] = useState(mockCategories);
-  const [filteredCategories, setFilteredCategories] = useState(mockCategories);
+  const [categories, setCategories] = useState([]);
+  const [filteredCategories, setFilteredCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [data, setData] = useState<any>([]);
-  const [categoryFilter, setcategoryFilter] = useState("");
   const [datasCategory, setDatasCategody] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -232,7 +87,7 @@ export default function CategoriesManagement() {
     setIsLoading(true);
     try {
       const response = await fetchApi().post(`/categories`, {
-        category_name: categoryFilter,
+        category_name: formData?.category_name,
       });
 
       setFormData({
@@ -250,8 +105,33 @@ export default function CategoriesManagement() {
       handleError(err);
     }
   };
+  const handleEditCategory = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetchApi().post(
+        `/categories/${selectedCategory?.id}`,
+        {
+          category_name: formData?.category_name,
+        }
+      );
 
-  const handleDeleteComplaint = async (complaint: number) => {
+      setFormData({
+        category_name: "",
+      });
+      setIsAddDialogOpen(false);
+      toast.success("Category berhasil di Tambahkan");
+      getDatasCategory();
+      // console.log("Response diterima:", response?.data); // Debug 3
+      setIsLoading(false);
+    } catch (err) {
+      setIsAddDialogOpen(false);
+      console.error("Error saat fetching:", err); // Debug 4
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
+
+  const handleDeleteCategories = async (complaint: number) => {
     setIsLoading(true);
     try {
       const response = await fetchApi().delete(
@@ -273,60 +153,13 @@ export default function CategoriesManagement() {
     getDatasCategory();
   }, []);
 
-  useEffect(() => {
-    if (searchTerm) {
-      setFilteredCategories(
-        categories.filter(
-          (category) =>
-            category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            category.description
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())
-        )
-      );
-    } else {
-      setFilteredCategories(categories);
-    }
-  }, [searchTerm, categories]);
-
   if (!isAuthenticated) return <div>Memuat...</div>;
 
-  const resetForm = () => {
-    setFormData({ name: "", description: "" });
-  };
-
-  const handleAddCategory = () => {
-    const newCategory = {
-      id: Date.now(),
-      ...formData,
-      complaintsCount: 0,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setCategories((prev) => [...prev, newCategory]);
-    resetForm();
-    setIsAddDialogOpen(false);
-  };
-
-  const handleEditCategory = () => {
-    setCategories((prev) =>
-      prev.map((category) =>
-        category.id === selectedCategory.id
-          ? { ...category, ...formData }
-          : category
-      )
-    );
-    resetForm();
-    setIsEditDialogOpen(false);
-    setSelectedCategory(null);
-  };
-
-  const handleDeleteCategory = (id: number) => {
-    setCategories((prev) => prev.filter((c) => c.id !== id));
-  };
-
   const openEditDialog = (category: any) => {
+    setFormData({
+      category_name: category?.category_name,
+    });
     setSelectedCategory(category);
-    setFormData({ name: category.name, description: category.description });
     setIsEditDialogOpen(true);
   };
 
@@ -386,30 +219,30 @@ export default function CategoriesManagement() {
                   <div className="space-y-4">
                     <div>
                       <div>
-                        <Label htmlFor="priority">Kategori</Label>
-                        <Select
-                          value={categoryFilter}
-                          onValueChange={setcategoryFilter}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih Kategori" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Semua Kategori</SelectItem>
-                            {kategoriPengaduan.map((kategori, index) => (
-                              <SelectItem key={index} value={kategori}>
-                                {kategori}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="edit-name">Nama Kategori</Label>
+                        <Input
+                          id="edit-name"
+                          value={formData.category_name}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              category_name: e.target.value,
+                            })
+                          }
+                          placeholder="Masukkan nama kategori"
+                        />
                       </div>
                     </div>
 
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="outline"
-                        onClick={() => setIsAddDialogOpen(false)}
+                        onClick={() => {
+                          setFormData({
+                            category_name: "",
+                          });
+                          setIsAddDialogOpen(false);
+                        }}
                       >
                         Batal
                       </Button>
@@ -459,7 +292,7 @@ export default function CategoriesManagement() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteComplaint(category.id)}
+                      onClick={() => handleDeleteCategories(category.id)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -489,7 +322,7 @@ export default function CategoriesManagement() {
           ))}
         </div>
 
-        {filteredCategories.length === 0 && (
+        {datasCategory.length === 0 && !isLoading && (
           <Card>
             <CardContent className="text-center py-8">
               <Tag className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -519,29 +352,23 @@ export default function CategoriesManagement() {
                 <Label htmlFor="edit-name">Nama Kategori</Label>
                 <Input
                   id="edit-name"
-                  value={formData.name}
+                  value={formData.category_name}
                   onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
+                    setFormData({ ...formData, category_name: e.target.value })
                   }
                   placeholder="Masukkan nama kategori"
                 />
               </div>
-              <div>
-                <Label htmlFor="edit-description">Deskripsi</Label>
-                <Textarea
-                  id="edit-description"
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="Masukkan deskripsi kategori"
-                />
-              </div>
+
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
+                  onClick={() => {
+                    setFormData({
+                      category_name: "",
+                    });
+                    setIsEditDialogOpen(false);
+                  }}
                 >
                   Batal
                 </Button>

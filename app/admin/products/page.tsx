@@ -167,6 +167,7 @@ export default function ProductsManagement() {
         category_id: null,
         product_name: null,
       });
+      getAllProducts();
       setIsAddDialogOpen(false);
       toast.success("Product berhasil di Tambahkan");
       // console.log("Response diterima:", response?.data); // Debug 3
@@ -216,10 +217,13 @@ export default function ProductsManagement() {
   const handleEditProduct = async () => {
     setIsLoading(true);
     try {
-      const response = await fetchApi().post(`/products/${categoryFilter}`, {
-        category_id: categoryFilter,
-        product_name: formData?.product_name,
-      });
+      const response = await fetchApi().post(
+        `/products/${selectedProduct?.id}`,
+        {
+          category_id: categoryFilter,
+          product_name: formData?.product_name,
+        }
+      );
 
       setFormData({
         category_id: null,
@@ -238,15 +242,15 @@ export default function ProductsManagement() {
     setIsEditDialogOpen(false);
     setSelectedProduct(null);
   };
-  // console.log(formData, "ff");
+  console.log(categoryFilter, "categoryFilter");
   const openEditDialog = (product: any) => {
-    // console.log(product, "pp");
+    console.log(product, "pp");
     setSelectedProduct(product);
     setFormData({
       product_name: product.product_name,
       catgory_id: product.category,
     });
-    setcategoryFilter(product.category?.category_nama);
+    setcategoryFilter(product.category?.id);
     setIsEditDialogOpen(true);
   };
 
