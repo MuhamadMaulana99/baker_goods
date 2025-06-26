@@ -48,6 +48,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { encryptStorage } from "@/config/encryptStorage";
+import fetchApi from "@/config/fetchApi";
+import useDebounce from "@/config/useDebounce";
+import axios from "axios";
+import { handleError } from "@/helper";
+import toast from "react-hot-toast";
+
+interface Category {
+  id: number;
+  category_name: string;
+}
 
 // Data Pengaduan (Mock)
 const mockComplaints = [
@@ -118,56 +129,96 @@ const mockComplaints = [
 ];
 
 export default function ComplaintsManagement() {
+  const userInfo = encryptStorage.getItem("info");
+  // console.log(userInfo, "userInfo");
   const router = useRouter();
-  const [complaints, setComplaints] = useState(mockComplaints);
-  const [filteredComplaints, setFilteredComplaints] = useState(mockComplaints);
+  const [isLoading, setIsLoading] = useState(false);
+  const [data, setData] = useState<any>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [complaints, setComplaints] = useState<any>([]);
+  const [filteredComplaints, setFilteredComplaints] = useState<any>([]);
+  const [datasCategory, setDatasCategody] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [categoryFilter, setcategoryFilter] = useState("all");
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
   const [responseText, setResponseText] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  console.log(responseText, "responseText");
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 1000);
 
   useEffect(() => {
-    const auth = localStorage.getItem("adminAuth");
-    if (auth === "true") {
+    if (userInfo?.token) {
       setIsAuthenticated(true);
     } else {
       router.push("/admin");
     }
-  }, [router]);
+  }, [userInfo]);
+
+  const getAllProducts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetchApi().get(
+        `/complaints/filter/${statusFilter}/category/${categoryFilter}?keyword=${debouncedSearchTerm}`
+      );
+      console.log(response, "sss");
+      setData(response?.data);
+      setIsLoading(false);
+    } catch (error) {
+      setIsLoading(false);
+      console.error("❌ Gagal ambil semua produk:", error);
+      throw error;
+    }
+  };
+
+  const getDatasCategory = async () => {
+    setIsLoading(true);
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/categories`;
+      const response = await axios.get(url);
+      // console.log("Response diterima:", response?.data); // Debug 3
+      setIsLoading(false);
+      setDatasCategody(response.data);
+    } catch (err) {
+      console.error("Error saat fetching:", err); // Debug 4
+      setDatasCategody([]);
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
+  const adminResponse = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetchApi().put(
+        `${process.env.NEXT_PUBLIC_API_URL}/complaints/${selectedComplaint?.id}`,
+        {
+          status: newStatus,
+          admin_response: responseText || selectedComplaint?.admin_response,
+          user_id: userInfo?.user?.id,
+        }
+      );
+      // console.log("Response diterima:", response?.data); // Debug 3
+      toast.success("Berhasil Menambahkan Response");
+      setIsDialogOpen(false);
+      getAllProducts();
+      setIsLoading(false);
+    } catch (err) {
+      setIsDialogOpen(false);
+      console.error("Error saat fetching:", err); // Debug 4
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
 
   useEffect(() => {
-    let filtered = complaints;
+    getAllProducts();
+  }, [statusFilter, categoryFilter, debouncedSearchTerm]);
 
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (complaint) =>
-          complaint.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          complaint.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          complaint.product.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(
-        (complaint) => complaint.status === statusFilter
-      );
-    }
-
-    if (priorityFilter !== "all") {
-      filtered = filtered.filter(
-        (complaint) => complaint.priority === priorityFilter
-      );
-    }
-
-    setFilteredComplaints(filtered);
-  }, [searchTerm, statusFilter, priorityFilter, complaints]);
-
-  if (!isAuthenticated) {
-    return <div>Loading...</div>;
-  }
+  useEffect(() => {
+    getDatasCategory();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -199,59 +250,30 @@ export default function ComplaintsManagement() {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "Tinggi":
-        return "bg-red-100 text-red-800";
-      case "Sedang":
-        return "bg-yellow-100 text-yellow-800";
-      case "Rendah":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+  const handleDeleteComplaint = async (complaint: number) => {
+    setIsLoading(true);
+    try {
+      const response = await fetchApi().delete(
+        `${process.env.NEXT_PUBLIC_API_URL}/complaints/${complaint}`
+      );
+      // console.log("Response diterima:", response?.data); // Debug 3
+      getAllProducts();
+      toast.success("Berhasil Menghapus");
+      setIsLoading(false);
+    } catch (err) {
+      console.error("Error saat fetching:", err); // Debug 4
+      setIsLoading(false);
+      handleError(err);
     }
   };
 
-  const handleStatusUpdate = (complaintId: number, status: string) => {
-    setComplaints((prev) =>
-      prev.map((complaint) =>
-        complaint.id === complaintId ? { ...complaint, status } : complaint
-      )
-    );
-  };
-
-  const handleAddResponse = (complaintId: number, message: string) => {
-    setComplaints((prev) =>
-      prev.map((complaint) =>
-        complaint.id === complaintId
-          ? {
-              ...complaint,
-              responses: [
-                ...complaint.responses,
-                {
-                  id: Date.now(),
-                  message,
-                  createdAt: new Date().toISOString().split("T")[0],
-                  isAdmin: true,
-                },
-              ],
-            }
-          : complaint
-      )
-    );
-    setResponseText("");
-  };
-
-  const handleDeleteComplaint = (complaintId: number) => {
-    setComplaints((prev) =>
-      prev.filter((complaint) => complaint.id !== complaintId)
-    );
-  };
-
+  if (!isAuthenticated) {
+    return <div>Loading...</div>;
+  }
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
@@ -305,27 +327,29 @@ export default function ComplaintsManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="Pending">Menunggu</SelectItem>
-                    <SelectItem value="In Progress">Sedang Diproses</SelectItem>
-                    <SelectItem value="Resolved">Selesai</SelectItem>
-                    <SelectItem value="Rejected">Ditolak</SelectItem>
+                    <SelectItem value="Masuk">Menunggu</SelectItem>
+                    <SelectItem value="Diproses">Sedang Diproses</SelectItem>
+                    <SelectItem value="Selesai">Selesai</SelectItem>
+                    <SelectItem value="Ditolak">Ditolak</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="priority">Prioritas</Label>
+                <Label htmlFor="priority">Kategori</Label>
                 <Select
-                  value={priorityFilter}
-                  onValueChange={setPriorityFilter}
+                  value={categoryFilter}
+                  onValueChange={setcategoryFilter}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Pilih Kategori" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Semua Prioritas</SelectItem>
-                    <SelectItem value="High">Tinggi</SelectItem>
-                    <SelectItem value="Medium">Sedang</SelectItem>
-                    <SelectItem value="Low">Rendah</SelectItem>
+                    <SelectItem value="all">Semua Kategori</SelectItem>
+                    {datasCategory?.map((item) => (
+                      <SelectItem key={item.id} value={String(item.id)}>
+                        {item.category_name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -335,7 +359,7 @@ export default function ComplaintsManagement() {
                   onClick={() => {
                     setSearchTerm("");
                     setStatusFilter("all");
-                    setPriorityFilter("all");
+                    setcategoryFilter("all");
                   }}
                 >
                   Hapus Filter
@@ -350,9 +374,7 @@ export default function ComplaintsManagement() {
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle>
-                  Daftar Pengaduan ({filteredComplaints.length})
-                </CardTitle>
+                <CardTitle>Daftar Pengaduan ({data?.length})</CardTitle>
                 <CardDescription>
                   Kelola dan tanggapi pengaduan pelanggan
                 </CardDescription>
@@ -361,33 +383,44 @@ export default function ComplaintsManagement() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredComplaints.map((complaint) => (
+              {data?.map((complaint: any) => (
                 <div
                   key={complaint.id}
                   className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-4">
-                      <h4 className="font-medium text-lg">{complaint.code}</h4>
+                      <h4 className="font-medium text-lg">
+                        {complaint?.code_complaint}
+                      </h4>
                       <Badge
                         className={`${getStatusColor(
                           complaint.status
                         )} flex items-center gap-1`}
                       >
-                        {getStatusIcon(complaint.status)}
-                        {complaint.status}
+                        {getStatusIcon(complaint?.status)}
+                        {complaint?.status}
                       </Badge>
-                      <Badge className={getPriorityColor(complaint.priority)}>
+                      {/* <Badge className={getPriorityColor(complaint.priority)}>
                         {complaint.priority}
-                      </Badge>
+                      </Badge> */}
                     </div>
                     <div className="flex gap-2">
-                      <Dialog>
+                      <Dialog
+                        open={isDialogOpen}
+                        onOpenChange={setIsDialogOpen}
+                      >
                         <DialogTrigger asChild>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setSelectedComplaint(complaint)}
+                            onClick={() => {
+                              setIsDialogOpen(true);
+                              setSelectedComplaint(complaint);
+                              setResponseText(
+                                complaint?.admin_response
+                              );
+                            }}
                           >
                             <Eye className="w-4 h-4 mr-1" />
                             Lihat
@@ -396,7 +429,7 @@ export default function ComplaintsManagement() {
                         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>
-                              Detail Pengaduan - {complaint.code}
+                              Detail Pengaduan - {complaint.code_complaint}
                             </DialogTitle>
                             <DialogDescription>
                               Kelola status pengaduan dan berikan tanggapan
@@ -405,7 +438,6 @@ export default function ComplaintsManagement() {
 
                           {selectedComplaint && (
                             <div className="space-y-6">
-                              {/* Customer Info */}
                               <div className="grid md:grid-cols-2 gap-6">
                                 <div className="space-y-4">
                                   <h4 className="font-medium">
@@ -415,21 +447,23 @@ export default function ComplaintsManagement() {
                                     <div className="flex items-center gap-2">
                                       <User className="w-4 h-4 text-gray-500" />
                                       <span className="font-medium">Nama:</span>
-                                      <span>{selectedComplaint.fullName}</span>
+                                      <span>
+                                        {selectedComplaint?.customer_name}
+                                      </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Mail className="w-4 h-4 text-gray-500" />
                                       <span className="font-medium">
                                         Email:
                                       </span>
-                                      <span>{selectedComplaint.email}</span>
+                                      <span>{selectedComplaint?.email}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Phone className="w-4 h-4 text-gray-500" />
                                       <span className="font-medium">
                                         Telepon:
                                       </span>
-                                      <span>{selectedComplaint.phone}</span>
+                                      <span>{selectedComplaint?.contact}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -443,14 +477,24 @@ export default function ComplaintsManagement() {
                                       <span className="font-medium">
                                         Produk:
                                       </span>
-                                      <span>{selectedComplaint.product}</span>
+                                      <span>
+                                        {
+                                          selectedComplaint?.product
+                                            ?.product_name
+                                        }
+                                      </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Tag className="w-4 h-4 text-gray-500" />
                                       <span className="font-medium">
                                         Kategori:
                                       </span>
-                                      <span>{selectedComplaint.category}</span>
+                                      <span>
+                                        {
+                                          selectedComplaint.category
+                                            ?.category_name
+                                        }
+                                      </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Calendar className="w-4 h-4 text-gray-500" />
@@ -458,7 +502,7 @@ export default function ComplaintsManagement() {
                                         Tanggal Kejadian:
                                       </span>
                                       <span>
-                                        {selectedComplaint.incidentDate}
+                                        {selectedComplaint?.date_occurrence}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -466,21 +510,20 @@ export default function ComplaintsManagement() {
                                       <span className="font-medium">
                                         Dikirim Pada:
                                       </span>
-                                      <span>{selectedComplaint.createdAt}</span>
+                                      <span>
+                                        {selectedComplaint?.createdAt}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Description */}
                               <div>
                                 <h4 className="font-medium mb-2">Deskripsi</h4>
                                 <p className="text-gray-600 bg-gray-50 p-3 rounded-lg">
-                                  {selectedComplaint.description}
+                                  {selectedComplaint?.description}
                                 </p>
                               </div>
-
-                              {/* Status Update */}
                               <div className="grid md:grid-cols-2 gap-4">
                                 <div>
                                   <Label htmlFor="newStatus">
@@ -496,85 +539,23 @@ export default function ComplaintsManagement() {
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="Pending">
+                                      <SelectItem value="Masuk">
                                         Menunggu
                                       </SelectItem>
-                                      <SelectItem value="In Progress">
+                                      <SelectItem value="Diproses">
                                         Sedang Diproses
                                       </SelectItem>
-                                      <SelectItem value="Resolved">
+                                      <SelectItem value="Selesai">
                                         Selesai
                                       </SelectItem>
-                                      <SelectItem value="Rejected">
+                                      <SelectItem value="Ditolak">
                                         Ditolak
                                       </SelectItem>
                                     </SelectContent>
                                   </Select>
                                 </div>
-                                <div className="flex items-end">
-                                  <Button
-                                    onClick={() => {
-                                      if (newStatus) {
-                                        handleStatusUpdate(
-                                          selectedComplaint.id,
-                                          newStatus
-                                        );
-                                        setSelectedComplaint({
-                                          ...selectedComplaint,
-                                          status: newStatus,
-                                        });
-                                        setNewStatus("");
-                                      }
-                                    }}
-                                    disabled={
-                                      !newStatus ||
-                                      newStatus === selectedComplaint.status
-                                    }
-                                  >
-                                    Perbarui Status
-                                  </Button>
-                                </div>
                               </div>
 
-                              {/* Communication History */}
-                              {selectedComplaint.responses &&
-                                selectedComplaint.responses.length > 0 && (
-                                  <div>
-                                    <h4 className="font-medium mb-4">
-                                      Riwayat Komunikasi
-                                    </h4>
-                                    <div className="space-y-3 max-h-60 overflow-y-auto">
-                                      {selectedComplaint.responses.map(
-                                        (response: any) => (
-                                          <div
-                                            key={response.id}
-                                            className={`p-4 rounded-lg ${
-                                              response.isAdmin
-                                                ? "bg-blue-50 border-l-4 border-blue-400"
-                                                : "bg-gray-50 border-l-4 border-gray-400"
-                                            }`}
-                                          >
-                                            <div className="flex justify-between items-start mb-2">
-                                              <span className="font-medium text-sm">
-                                                {response.isAdmin
-                                                  ? "Tim Dukungan"
-                                                  : "Pelanggan"}
-                                              </span>
-                                              <span className="text-xs text-gray-500">
-                                                {response.createdAt}
-                                              </span>
-                                            </div>
-                                            <p className="text-gray-700">
-                                              {response.message}
-                                            </p>
-                                          </div>
-                                        )
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                              {/* Add Response */}
                               <div>
                                 <Label htmlFor="response">Tanggapan</Label>
                                 <Textarea
@@ -588,29 +569,8 @@ export default function ComplaintsManagement() {
                                 />
                                 <div className="flex justify-end mt-2">
                                   <Button
-                                    onClick={() => {
-                                      if (responseText.trim()) {
-                                        handleAddResponse(
-                                          selectedComplaint.id,
-                                          responseText
-                                        );
-                                        setSelectedComplaint({
-                                          ...selectedComplaint,
-                                          responses: [
-                                            ...selectedComplaint.responses,
-                                            {
-                                              id: Date.now(),
-                                              message: responseText,
-                                              createdAt: new Date()
-                                                .toISOString()
-                                                .split("T")[0],
-                                              isAdmin: true,
-                                            },
-                                          ],
-                                        });
-                                      }
-                                    }}
-                                    disabled={!responseText.trim()}
+                                    onClick={adminResponse}
+                                    disabled={!responseText?.trim()}
                                   >
                                     <MessageSquare className="w-4 h-4 mr-1" />
                                     Kirim Tanggapan
@@ -636,27 +596,27 @@ export default function ComplaintsManagement() {
                   <div className="grid md:grid-cols-4 gap-4 text-sm mb-3">
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4 text-gray-500" />
-                      <span>{complaint.fullName}</span>
+                      <span>{complaint?.customer_name}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Package className="w-4 h-4 text-gray-500" />
-                      <span>{complaint.product}</span>
+                      <span>{complaint?.product?.product_name}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Tag className="w-4 h-4 text-gray-500" />
-                      <span>{complaint.category}</span>
+                      <span>{complaint?.category?.category_name}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-500" />
-                      <span>{complaint.createdAt}</span>
+                      <span>{complaint?.createdAt}</span>
                     </div>
                   </div>
 
                   <p className="text-gray-600 text-sm line-clamp-2">
-                    {complaint.description}
+                    {complaint?.description}
                   </p>
 
-                  {complaint.responses.length > 0 && (
+                  {/* {complaint.responses.length > 0 && (
                     <div className="mt-3 text-xs text-gray-500">
                       Tanggapan terakhir:{" "}
                       {
@@ -664,11 +624,11 @@ export default function ComplaintsManagement() {
                           .createdAt
                       }
                     </div>
-                  )}
+                  )} */}
                 </div>
               ))}
 
-              {filteredComplaints.length === 0 && (
+              {data.length === 0 && (
                 <div className="text-center py-8">
                   <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">

@@ -1,9 +1,15 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   BarChart3,
   FileText,
@@ -15,122 +21,108 @@ import {
   Package,
   Tag,
   LogOut,
-} from "lucide-react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { EncryptStorage } from "encrypt-storage";
+import { encryptStorage } from "@/config/encryptStorage";
+import fetchApi from "@/config/fetchApi";
+import axios from "axios";
+import { handleError } from "@/helper";
 
-const dashboardStats = {
-  totalComplaints: 156,
-  pending: 23,
-  inProgress: 45,
-  resolved: 78,
-  rejected: 10,
-  thisMonth: 34,
-  lastMonth: 28,
-  avgResolutionTime: 3.2,
-}
-
-const recentComplaints = [
-  {
-    id: 1,
-    code: "CMP-123456",
-    customer: "John Doe",
-    product: "Roti Cokelat Premium",
-    category: "Rasa",
-    status: "Dalam Proses",
-    createdAt: "2024-01-20",
-    priority: "Tinggi",
-  },
-  {
-    id: 2,
-    code: "CMP-789012",
-    customer: "Jane Smith",
-    product: "Roti Tawar Jumbo",
-    category: "Pengemasan Kurang Aman",
-    status: "Menunggu",
-    createdAt: "2024-01-19",
-    priority: "Sedang",
-  },
-  {
-    id: 3,
-    code: "CMP-345678",
-    customer: "Bob Johnson",
-    product: "Roti Manis Keju",
-    category: "Pelayanan Pegawai",
-    status: "Selesai",
-    createdAt: "2024-01-18",
-    priority: "Rendah",
-  },
-];
-
-
-const chartData = {
-  monthly: [
-    { month: "Jan", complaints: 45 },
-    { month: "Feb", complaints: 52 },
-    { month: "Mar", complaints: 38 },
-    { month: "Apr", complaints: 61 },
-    { month: "Mei", complaints: 55 },
-    { month: "Jun", complaints: 67 },
-  ],
-  byCategory: [
-    { category: "Cacat Produk", count: 45, percentage: 35 },
-    { category: "Masalah Pengiriman", count: 32, percentage: 25 },
-    { category: "Layanan Pelanggan", count: 28, percentage: 22 },
-    { category: "Masalah Pembayaran", count: 15, percentage: 12 },
-    { category: "Klaim Garansi", count: 8, percentage: 6 },
-  ],
+interface Category {
+  id: number;
+  category_name: string;
 }
 
 export default function AdminDashboard() {
-  const router = useRouter()
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const userInfo = encryptStorage.getItem("info");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [datasCategory, setDatasCategody] = useState<Category[]>([]);
+  const [data, setData] = useState<any>({});
+  const [dataComplaints, setDataConplaints] = useState<any>([]);
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const getAllProducts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetchApi().get("/complaints/report");
+      // console.log(response, 'sss')
+      setData(response?.data?.data);
+      setIsLoading(false);
+    } catch (error) {
+      setIsLoading(false);
+      console.error("❌ Gagal ambil semua produk:", error);
+      throw error;
+    }
+  };
+  const getDatasCategory = async () => {
+    setIsLoading(true);
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/categories`;
+      const response = await axios.get(url);
+      // console.log("Response diterima:", response?.data); // Debug 3
+      setIsLoading(false);
+      setDatasCategody(response.data);
+    } catch (err) {
+      console.error("Error saat fetching:", err); // Debug 4
+      setDatasCategody([]);
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
 
   useEffect(() => {
-    const auth = localStorage.getItem("adminAuth")
-    if (auth === "true") {
-      setIsAuthenticated(true)
+    if (userInfo?.token) {
+      setIsAuthenticated(true);
     } else {
-      router.push("/admin")
+      router.push("/admin");
     }
-  }, [router])
+  }, [userInfo]);
+
+  useEffect(() => {
+    getAllProducts();
+    getDatasCategory();
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("adminAuth")
-    router.push("/admin")
-  }
+    localStorage.removeItem("adminAuth");
+    router.push("/admin");
+  };
 
   if (!isAuthenticated) {
-    return <div>Memuat...</div>
+    return <div>Memuat...</div>;
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Menunggu":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "Dalam Proses":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "Selesai":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "Ditolak":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "Tinggi":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case "Sedang":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "Rendah":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -140,11 +132,23 @@ export default function AdminDashboard() {
           <div className="flex justify-between items-center h-16">
             <h1 className="text-2xl font-bold text-gray-900">Dasbor Admin</h1>
             <nav className="flex items-center space-x-4">
-              <Link href="/admin/complaints"><Button variant="ghost">Pengaduan</Button></Link>
-              <Link href="/admin/products"><Button variant="ghost">Produk</Button></Link>
-              <Link href="/admin/categories"><Button variant="ghost">Kategori</Button></Link>
-              <Link href="/admin/reports"><Button variant="ghost">Laporan</Button></Link>
-              <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
+              <Link href="/admin/complaints">
+                <Button variant="ghost">Pengaduan</Button>
+              </Link>
+              <Link href="/admin/products">
+                <Button variant="ghost">Produk</Button>
+              </Link>
+              <Link href="/admin/categories">
+                <Button variant="ghost">Kategori</Button>
+              </Link>
+              <Link href="/admin/reports">
+                <Button variant="ghost">Laporan</Button>
+              </Link>
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="flex items-center gap-2"
+              >
                 <LogOut className="w-4 h-4" />
                 Keluar
               </Button>
@@ -158,14 +162,19 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Pengaduan</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Pengaduan
+              </CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{dashboardStats.totalComplaints}</div>
-              <p className="text-xs text-muted-foreground">
-                +{dashboardStats.thisMonth - dashboardStats.lastMonth} dari bulan lalu
-              </p>
+              <div className="text-2xl font-bold">
+                {data?.summary?.totalComplaints}
+              </div>
+              {/* <p className="text-xs text-muted-foreground">
+                +{data?.summary?.thisMonth - data?.summary?.lastMonth} dari
+                bulan lalu
+              </p> */}
             </CardContent>
           </Card>
 
@@ -175,18 +184,24 @@ export default function AdminDashboard() {
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{dashboardStats.pending}</div>
+              <div className="text-2xl font-bold">
+                {data?.summary?.pendingComplaints}
+              </div>
               <p className="text-xs text-muted-foreground">Menunggu ditinjau</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Dalam Proses</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Dalam Proses
+              </CardTitle>
               <AlertCircle className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{dashboardStats.inProgress}</div>
+              <div className="text-2xl font-bold">
+                {data?.summary?.inProgressComplaints}
+              </div>
               <p className="text-xs text-muted-foreground">Sedang diproses</p>
             </CardContent>
           </Card>
@@ -197,7 +212,9 @@ export default function AdminDashboard() {
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{dashboardStats.resolved}</div>
+              <div className="text-2xl font-bold">
+                {data?.summary?.resolvedComplaints}
+              </div>
               <p className="text-xs text-muted-foreground">Selesai ditangani</p>
             </CardContent>
           </Card>
@@ -211,14 +228,19 @@ export default function AdminDashboard() {
                 <BarChart3 className="w-5 h-5" />
                 Tren Pengaduan Bulanan
               </CardTitle>
-              <CardDescription>Jumlah pengaduan dalam 6 bulan terakhir</CardDescription>
+              <CardDescription>
+                Jumlah pengaduan dalam 6 bulan terakhir
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {chartData.monthly.map((item, index) => (
+              {data?.monthly?.map((item: any, index: number) => (
                 <div key={index} className="flex items-center gap-4 mb-2">
                   <div className="w-12">{item.month}</div>
                   <div className="flex-1 bg-gray-200 h-2 rounded-full">
-                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${(item.complaints / 70) * 100}%` }} />
+                    <div
+                      className="bg-blue-600 h-2 rounded-full"
+                      style={{ width: `${(item.complaints / 70) * 100}%` }}
+                    />
                   </div>
                   <div className="w-12 text-right">{item.complaints}</div>
                 </div>
@@ -232,17 +254,24 @@ export default function AdminDashboard() {
                 <Tag className="w-5 h-5" />
                 Berdasarkan Kategori
               </CardTitle>
-              <CardDescription>Distribusi pengaduan berdasarkan jenis</CardDescription>
+              <CardDescription>
+                Distribusi pengaduan berdasarkan jenis
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {chartData.byCategory.map((item, index) => (
+              {data?.byCategory?.map((item: any, index: number) => (
                 <div key={index} className="space-y-2 mb-2">
                   <div className="flex justify-between text-sm">
                     <span>{item.category}</span>
-                    <span>{item.count} ({item.percentage}%)</span>
+                    <span>
+                      {item.count} ({item.percentage}%)
+                    </span>
                   </div>
                   <div className="bg-gray-200 h-2 rounded-full">
-                    <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${item.percentage}%` }} />
+                    <div
+                      className="bg-indigo-600 h-2 rounded-full"
+                      style={{ width: `${item.percentage}%` }}
+                    />
                   </div>
                 </div>
               ))}
@@ -255,7 +284,9 @@ export default function AdminDashboard() {
           <CardHeader className="flex justify-between items-center">
             <div>
               <CardTitle>Pengaduan Terbaru</CardTitle>
-              <CardDescription>Pengaduan yang baru masuk dan butuh perhatian</CardDescription>
+              <CardDescription>
+                Pengaduan yang baru masuk dan butuh perhatian
+              </CardDescription>
             </div>
             <Link href="/admin/complaints">
               <Button>Lihat Semua</Button>
@@ -263,23 +294,43 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentComplaints.map((complaint) => (
-                <div key={complaint.id} className="p-4 border rounded-lg flex justify-between items-center hover:bg-gray-50">
+              {dataComplaints.map((complaint: any) => (
+                <div
+                  key={complaint.id}
+                  className="p-4 border rounded-lg flex justify-between items-center hover:bg-gray-50"
+                >
                   <div>
                     <div className="flex items-center gap-4 mb-2">
-                      <h4 className="font-medium">{complaint.code}</h4>
-                      <Badge className={getStatusColor(complaint.status)}>{complaint.status}</Badge>
-                      <Badge className={getPriorityColor(complaint.priority)}>{complaint.priority}</Badge>
+                      <h4 className="font-medium">
+                        {complaint.code_complaint}
+                      </h4>
+                      <Badge className={getStatusColor(complaint.status)}>
+                        {complaint.status}
+                      </Badge>
+                      {/* <Badge className={getPriorityColor(complaint.priority)}>
+                        {complaint.priority}
+                      </Badge> */}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                      <div><Users className="inline w-4 h-4 mr-1" /> {complaint.customer}</div>
-                      <div><Package className="inline w-4 h-4 mr-1" /> {complaint.product}</div>
-                      <div><Tag className="inline w-4 h-4 mr-1" /> {complaint.category}</div>
-                      <div>{complaint.createdAt}</div>
+                      <div>
+                        <Users className="inline w-4 h-4 mr-1" />{" "}
+                        {complaint.customer_name}
+                      </div>
+                      <div>
+                        <Package className="inline w-4 h-4 mr-1" />{" "}
+                        {complaint?.product?.product_name}
+                      </div>
+                      <div>
+                        <Tag className="inline w-4 h-4 mr-1" />{" "}
+                        {complaint.category?.category_name}
+                      </div>
+                      <div>{complaint.date_occurrence}</div>
                     </div>
                   </div>
                   <Link href={`/admin/complaints/${complaint.id}`}>
-                    <Button variant="outline" size="sm">Lihat</Button>
+                    <Button variant="outline" size="sm">
+                      Lihat
+                    </Button>
                   </Link>
                 </div>
               ))}
@@ -296,7 +347,9 @@ export default function AdminDashboard() {
                   <FileText className="w-5 h-5" />
                   Kelola Pengaduan
                 </CardTitle>
-                <CardDescription>Lihat dan tanggapi pengaduan pelanggan</CardDescription>
+                <CardDescription>
+                  Lihat dan tanggapi pengaduan pelanggan
+                </CardDescription>
               </CardHeader>
             </Link>
           </Card>
@@ -327,5 +380,5 @@ export default function AdminDashboard() {
         </div>
       </div>
     </div>
-  )
+  );
 }
