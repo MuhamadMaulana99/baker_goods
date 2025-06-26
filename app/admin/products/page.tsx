@@ -46,63 +46,15 @@ import {
 } from "@/components/ui/select";
 import toast from "react-hot-toast";
 
-// Data produk contoh
-const mockProducts = [
-  {
-    id: 1,
-    name: "Roti Cokelat Premium",
-    description:
-      "Roti manis isi cokelat berkualitas tinggi dengan tekstur lembut",
-    price: 15000,
-    category: "Roti Manis",
-    sku: "RCP-001",
-    createdAt: "2024-01-01",
-  },
-  {
-    id: 2,
-    name: "Roti Tawar Jumbo",
-    description: "Roti tawar ukuran besar, cocok untuk keluarga",
-    price: 20000,
-    category: "Roti Tawar",
-    sku: "RTJ-002",
-    createdAt: "2024-01-02",
-  },
-  {
-    id: 3,
-    name: "Roti Keju Spesial",
-    description: "Roti dengan topping keju melimpah, gurih dan lezat",
-    price: 18000,
-    category: "Roti Gurih",
-    sku: "RKS-003",
-    createdAt: "2024-01-03",
-  },
-  {
-    id: 4,
-    name: "Roti Sosis Panggang",
-    description: "Roti isi sosis yang dipanggang dengan saus spesial",
-    price: 22000,
-    category: "Roti Isi",
-    sku: "RSP-004",
-    createdAt: "2024-01-04",
-  },
-  {
-    id: 5,
-    name: "Roti Pisang Cokelat",
-    description: "Kombinasi lezat pisang dan cokelat dalam roti lembut",
-    price: 17000,
-    category: "Roti Manis",
-    sku: "RPC-005",
-    createdAt: "2024-01-05",
-  },
-];
 interface Category {
   id: number;
   category_name: string;
 }
+
 export default function ProductsManagement() {
   const userInfo = encryptStorage.getItem("info");
   const router = useRouter();
-  const [products, setProducts] = useState(mockProducts);
+  const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<any>([]);
   const [datasCategory, setDatasCategody] = useState<Category[]>([]);
@@ -129,7 +81,6 @@ export default function ProductsManagement() {
     setIsLoading(true);
     try {
       const response = await fetchApi().get(`/products`);
-      // console.log(response, "sss");
       setData(response?.data);
       setIsLoading(false);
     } catch (error) {
@@ -144,115 +95,90 @@ export default function ProductsManagement() {
     try {
       const url = `${process.env.NEXT_PUBLIC_API_URL}/categories`;
       const response = await axios.get(url);
-      // console.log("Response diterima:", response?.data); // Debug 3
       setIsLoading(false);
       setDatasCategody(response.data);
     } catch (err) {
-      console.error("Error saat fetching:", err); // Debug 4
+      console.error("Error saat fetching:", err);
       setDatasCategody([]);
       setIsLoading(false);
       handleError(err);
     }
   };
-  // console.log(categoryFilter, categoryFilter);
+
   const handleSubmitProduct = async () => {
+    if (!formData.product_name || !categoryFilter) return;
     setIsLoading(true);
     try {
-      const response = await fetchApi().post(`/products`, {
-        category_id: categoryFilter,
+      await fetchApi().post(`/products`, {
+        category_id: parseInt(categoryFilter),
         product_name: formData?.product_name,
       });
-
-      setFormData({
-        category_id: null,
-        product_name: null,
-      });
+      setFormData({ category_id: "", product_name: "" });
       getAllProducts();
       setIsAddDialogOpen(false);
-      toast.success("Product berhasil di Tambahkan");
-      // console.log("Response diterima:", response?.data); // Debug 3
+      toast.success("Produk berhasil ditambahkan");
       setIsLoading(false);
     } catch (err) {
       setIsAddDialogOpen(false);
-      console.error("Error saat fetching:", err); // Debug 4
+      console.error("Error saat fetching:", err);
       setIsLoading(false);
       handleError(err);
     }
   };
 
-  const handleDeleteComplaint = async (complaint: number) => {
+  const handleDeleteComplaint = async (id: number) => {
     setIsLoading(true);
     try {
-      const response = await fetchApi().delete(
-        `${process.env.NEXT_PUBLIC_API_URL}/products/${complaint}`
+      await fetchApi().delete(
+        `${process.env.NEXT_PUBLIC_API_URL}/products/${id}`
       );
-      // console.log("Response diterima:", response?.data); // Debug 3
       getAllProducts();
-      toast.success("Berhasil Menghapus");
+      toast.success("Berhasil menghapus produk");
       setIsLoading(false);
     } catch (err) {
-      console.error("Error saat fetching:", err); // Debug 4
+      console.error("Error saat fetching:", err);
       setIsLoading(false);
       handleError(err);
     }
   };
-  // console.log(formData, "formData");
+
+  const handleEditProduct = async () => {
+    if (!formData.product_name || !categoryFilter || !selectedProduct) return;
+    setIsLoading(true);
+    try {
+      await fetchApi().put(`/products/${selectedProduct?.id}`, {
+        category_id: parseInt(categoryFilter),
+        product_name: formData?.product_name,
+      });
+      setFormData({ category_id: "", product_name: "" });
+      getAllProducts();
+      toast.success("Produk berhasil diperbarui");
+      setIsEditDialogOpen(false);
+      setSelectedProduct(null);
+      setIsLoading(false);
+    } catch (err) {
+      setIsEditDialogOpen(false);
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
+
+  const openEditDialog = (product: any) => {
+    setSelectedProduct(product);
+    setFormData({
+      product_name: product.product_name,
+      category_id: product.category?.id,
+    });
+    setcategoryFilter(String(product.category?.id));
+    setIsEditDialogOpen(true);
+  };
 
   useEffect(() => {
     getAllProducts();
     getDatasCategory();
   }, []);
 
-  if (!isAuthenticated) {
-    return <div>Memuat...</div>;
-  }
-
-  const resetForm = () => {
-    setFormData({
-      product_name: "",
-      category_id: "",
-    });
-  };
-
-  const handleEditProduct = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetchApi().post(
-        `/products/${selectedProduct?.id}`,
-        {
-          category_id: categoryFilter,
-          product_name: formData?.product_name,
-        }
-      );
-
-      setFormData({
-        category_id: null,
-        product_name: null,
-      });
-      setIsAddDialogOpen(false);
-      toast.success("Product berhasil di Tambahkan");
-      // console.log("Response diterima:", response?.data); // Debug 3
-      setIsLoading(false);
-    } catch (err) {
-      setIsAddDialogOpen(false);
-      setIsLoading(false);
-      handleError(err);
-    }
-    resetForm();
-    setIsEditDialogOpen(false);
-    setSelectedProduct(null);
-  };
-  console.log(categoryFilter, "categoryFilter");
-  const openEditDialog = (product: any) => {
-    console.log(product, "pp");
-    setSelectedProduct(product);
-    setFormData({
-      product_name: product.product_name,
-      catgory_id: product.category,
-    });
-    setcategoryFilter(product.category?.id);
-    setIsEditDialogOpen(true);
-  };
+  if (!isAuthenticated) return <div>Memuat...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -331,7 +257,6 @@ export default function ProductsManagement() {
                             <SelectValue placeholder="Pilih Kategori" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">Semua Kategori</SelectItem>
                             {datasCategory?.map((item: any) => (
                               <SelectItem key={item.id} value={item.id}>
                                 {item.category_name}
@@ -477,7 +402,6 @@ export default function ProductsManagement() {
                       <SelectValue placeholder="Pilih Kategori" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Semua Kategori</SelectItem>
                       {datasCategory?.map((item) => (
                         <SelectItem key={item.id} value={String(item.id)}>
                           {item.category_name}
