@@ -91,7 +91,7 @@ export default function TrackPage() {
   const [todayComplaints, setTodayComplaints] = useState<ApiComplaint[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchResult, setSearchResult] = useState<ApiComplaint | null>(null);
-  console.log(todayComplaints, "todayComplaints");
+  // console.log(todayComplaints, "todayComplaints");
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);

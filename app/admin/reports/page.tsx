@@ -36,6 +36,12 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { encryptStorage } from "@/config/encryptStorage";
+import axios from "axios";
+import { handleError } from "@/helper";
+import fetchApi from "@/config/fetchApi";
+import moment from "moment";
+import { exportToExcel, exportToPDF } from "@/config/exportReport";
 
 // Mock report data
 // Mock report data untuk toko roti
@@ -81,11 +87,19 @@ const reportData = {
   ],
 };
 
+interface Category {
+  id: number;
+  category_name: string;
+}
 
 export default function ReportsPage() {
   const router = useRouter();
+  const userInfo = encryptStorage.getItem("info");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [dateRange, setDateRange] = useState({
+  const [isLoading, setIsLoading] = useState(false);
+  const [datasCategory, setDatasCategody] = useState<Category[]>([]);
+  const [datasReport, setDatasReport] = useState<any>({});
+  const [dateRange, setDateRange] = useState<any>({
     from: undefined as Date | undefined,
     to: undefined as Date | undefined,
   });
@@ -94,48 +108,102 @@ export default function ReportsPage() {
     category: "all",
     product: "all",
   });
-  const [reportType, setReportType] = useState("summary");
 
   useEffect(() => {
-    const auth = localStorage.getItem("adminAuth");
-    if (auth === "true") {
+    if (userInfo?.token) {
       setIsAuthenticated(true);
     } else {
       router.push("/admin");
     }
-  }, [router]);
+  }, [userInfo]);
 
-  if (!isAuthenticated) {
-    return <div>Loading...</div>;
-  }
+  const getDatasReport = async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+
+      if (filters.status && filters.status !== "all") {
+        params.append("status", filters.status);
+      }
+
+      if (filters.category && filters.category !== "all") {
+        params.append("category", filters.category);
+      }
+
+      if (dateRange?.from && dateRange?.to) {
+        params.append("from", moment(dateRange.from).format("YYYY-MM-DD"));
+        params.append("to", moment(dateRange.to).format("YYYY-MM-DD"));
+      }
+
+      const url = `${
+        process.env.NEXT_PUBLIC_API_URL
+      }/complaints/report?${params.toString()}`;
+      const response = await fetchApi().get(url);
+      // console.log(response, "response");
+
+      setDatasReport(response.data);
+    } catch (err) {
+      console.error("Error saat fetching:", err);
+      setDatasCategody([]);
+      handleError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getDatasCategory = async () => {
+    setIsLoading(true);
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/categories`;
+      const response = await axios.get(url);
+      // console.log("Response diterima:", response?.data); // Debug 3
+      setIsLoading(false);
+      setDatasCategody(response.data);
+    } catch (err) {
+      console.error("Error saat fetching:", err); // Debug 4
+      setDatasCategody([]);
+      setIsLoading(false);
+      handleError(err);
+    }
+  };
 
   const handleExportPDF = () => {
-    // In a real app, this would generate and download a PDF
-    alert(
-      "PDF export functionality would be implemented here using react-pdf or similar library"
-    );
+    if (!datasReport?.data) return;
+    exportToPDF(datasReport.data);
   };
 
   const handleExportExcel = () => {
-    // In a real app, this would generate and download an Excel file
-    alert("Excel export functionality would be implemented here");
+    if (!datasReport?.data) return;
+    exportToExcel(datasReport.data);
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Resolved":
+      case "Selesai":
         return "bg-green-500";
-      case "In Progress":
+      case "Masuk":
         return "bg-blue-500";
-      case "Pending":
+      case "Diproses":
         return "bg-yellow-500";
-      case "Rejected":
+      case "Ditolak":
         return "bg-red-500";
       default:
         return "bg-gray-500";
     }
   };
 
+  useEffect(() => {
+    getDatasReport();
+  }, [filters, dateRange]);
+  useEffect(() => {
+    getDatasCategory();
+    getDatasReport();
+  }, []);
+
+  if (!isAuthenticated) {
+    return <div>Loading...</div>;
+  }
+  console.log(datasReport?.data, "datasReport");
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -172,20 +240,7 @@ export default function ReportsPage() {
             <CardDescription>Atur parameter laporan Anda</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div>
-                <Label>Jenis Laporan</Label>
-                <Select value={reportType} onValueChange={setReportType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="summary">Ringkasan</SelectItem>
-                    <SelectItem value="detailed">Detail</SelectItem>
-                    <SelectItem value="trends">Analisis Tren</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label>Status</Label>
                 <Select
@@ -197,10 +252,10 @@ export default function ReportsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="pending">Menunggu</SelectItem>
-                    <SelectItem value="in-progress">Diproses</SelectItem>
-                    <SelectItem value="resolved">Selesai</SelectItem>
-                    <SelectItem value="rejected">Ditolak</SelectItem>
+                    <SelectItem value="Masuk">Menunggu</SelectItem>
+                    <SelectItem value="Diproses">Sedang Diproses</SelectItem>
+                    <SelectItem value="Selesai">Selesai</SelectItem>
+                    <SelectItem value="Ditolak">Ditolak</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -214,11 +269,14 @@ export default function ReportsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Semua Kategori</SelectItem>
-                    <SelectItem value="product-defect">Cacat Produk</SelectItem>
-                    <SelectItem value="delivery">Masalah Pengiriman</SelectItem>
-                    <SelectItem value="service">Layanan Pelanggan</SelectItem>
-                    <SelectItem value="billing">Masalah Penagihan</SelectItem>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Kategori</SelectItem>
+                      {datasCategory?.map((item: any) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.category_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </SelectContent>
                 </Select>
               </div>
@@ -292,7 +350,7 @@ export default function ReportsPage() {
         </Card>
 
         {/* Statistik Ringkasan */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -302,7 +360,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {reportData.summary.totalComplaints}
+                {datasReport?.data?.summary.totalComplaints}
               </div>
               <p className="text-xs text-muted-foreground">Sepanjang waktu</p>
             </CardContent>
@@ -318,19 +376,20 @@ export default function ReportsPage() {
             <CardContent>
               <div className="text-2xl font-bold">
                 {Math.round(
-                  (reportData.summary.resolvedComplaints /
-                    reportData.summary.totalComplaints) *
+                  (datasReport?.data?.summary.resolvedComplaints /
+                    datasReport?.data?.summary.totalComplaints) *
                     100
                 )}
                 %
               </div>
               <p className="text-xs text-muted-foreground">
-                {reportData.summary.resolvedComplaints} pengaduan diselesaikan
+                {datasReport?.data?.summary.resolvedComplaints} pengaduan
+                diselesaikan
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          {/* <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Rata-rata Waktu Penyelesaian
@@ -339,7 +398,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {reportData.summary.avgResolutionTime} hari
+                {datasReport?.data?.summary.avgResolutionTime} hari
               </div>
               <p className="text-xs text-muted-foreground">
                 Waktu rata-rata penyelesaian
@@ -356,11 +415,11 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {reportData.summary.customerSatisfaction}/5
+                {datasReport?.data?.summary.customerSatisfaction}/5
               </div>
               <p className="text-xs text-muted-foreground">Dari pelanggan</p>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
 
         {/* Distribusi Status & Kategori */}
@@ -372,7 +431,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {reportData.byStatus.map((item, index) => (
+                {datasReport?.data?.byStatus.map((item: any, index: number) => (
                   <div key={index} className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="flex items-center gap-2">
@@ -408,22 +467,24 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {reportData.byCategory.map((item, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>{item.category}</span>
-                      <span>
-                        {item.count} ({item.percentage}%)
-                      </span>
+                {datasReport?.data?.byCategory.map(
+                  (item: any, index: number) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>{item.category}</span>
+                        <span>
+                          {item.count} ({item.percentage}%)
+                        </span>
+                      </div>
+                      <div className="bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-indigo-600 h-2 rounded-full"
+                          style={{ width: `${item.percentage}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-indigo-600 h-2 rounded-full"
-                        style={{ width: `${item.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             </CardContent>
           </Card>
@@ -440,22 +501,24 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {reportData.byProduct.map((item, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>{item.product}</span>
-                      <span>
-                        {item.count} ({item.percentage}%)
-                      </span>
+                {datasReport?.data?.byProduct.map(
+                  (item: any, index: number) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>{item.product}</span>
+                        <span>
+                          {item.count} ({item.percentage}%)
+                        </span>
+                      </div>
+                      <div className="bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-purple-600 h-2 rounded-full"
+                          style={{ width: `${item.percentage}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-purple-600 h-2 rounded-full"
-                        style={{ width: `${item.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             </CardContent>
           </Card>
@@ -469,7 +532,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {reportData.monthly.map((item, index) => (
+                {datasReport?.data?.monthly.map((item: any, index: number) => (
                   <div key={index} className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">{item.month}</span>

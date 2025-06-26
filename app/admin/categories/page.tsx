@@ -37,6 +37,7 @@ import fetchApi from "@/config/fetchApi";
 import { handleError } from "@/helper";
 import axios from "axios";
 import toast from "react-hot-toast";
+import useDebounce from "@/config/useDebounce";
 // Data kategori contoh
 
 interface Category {
@@ -58,7 +59,7 @@ export default function CategoriesManagement() {
   const [formData, setFormData] = useState<any>({
     category_name: "",
   });
-
+  const debouncedSearchTerm = useDebounce(searchTerm, 1000);
   useEffect(() => {
     if (userInfo?.token) {
       setIsAuthenticated(true);
@@ -70,7 +71,7 @@ export default function CategoriesManagement() {
   const getDatasCategory = async () => {
     setIsLoading(true);
     try {
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/categories`;
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/categories?search=${debouncedSearchTerm}`;
       const response = await axios.get(url);
       // console.log("Response diterima:", response?.data); // Debug 3
       setIsLoading(false);
@@ -151,7 +152,7 @@ export default function CategoriesManagement() {
 
   useEffect(() => {
     getDatasCategory();
-  }, []);
+  }, [debouncedSearchTerm]);
 
   if (!isAuthenticated) return <div>Memuat...</div>;
 

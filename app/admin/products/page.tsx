@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import toast from "react-hot-toast";
+import useDebounce from "@/config/useDebounce";
 
 interface Category {
   id: number;
@@ -68,6 +69,7 @@ export default function ProductsManagement() {
     product_name: "",
     category_id: "",
   });
+  const debouncedSearchTerm = useDebounce(searchTerm, 1000);
 
   useEffect(() => {
     if (userInfo?.token) {
@@ -80,7 +82,7 @@ export default function ProductsManagement() {
   const getAllProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetchApi().get(`/products`);
+      const response = await fetchApi().get(`/products?search=${debouncedSearchTerm}`);
       setData(response?.data);
       setIsLoading(false);
     } catch (error) {
@@ -175,6 +177,9 @@ export default function ProductsManagement() {
 
   useEffect(() => {
     getAllProducts();
+  }, [debouncedSearchTerm]);
+
+  useEffect(() => {
     getDatasCategory();
   }, []);
 

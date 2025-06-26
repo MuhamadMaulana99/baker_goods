@@ -278,22 +278,8 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Pengaduan Terbaru */}
-        <Card>
-          <CardHeader className="flex justify-between items-center">
-            <div>
-              <CardTitle>Pengaduan Terbaru</CardTitle>
-              <CardDescription>
-                Pengaduan yang baru masuk dan butuh perhatian
-              </CardDescription>
-            </div>
-            <Link href="/admin/complaints">
-              <Button>Lihat Semua</Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+    
+            <div className="">
               {dataComplaints.map((complaint: any) => (
                 <div
                   key={complaint.id}
@@ -335,11 +321,9 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Aksi Cepat */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-1">
           <Card className="hover:shadow-md cursor-pointer">
             <Link href="/admin/complaints">
               <CardHeader>
