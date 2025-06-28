@@ -130,14 +130,14 @@ export default function AdminLoginPage() {
                 {isLoading ? "Sedang masuk..." : "Masuk"}
               </Button>
 
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg text-center">
+              {/* <div className="mt-6 p-4 bg-gray-50 rounded-lg text-center">
                 <p className="text-sm text-gray-600 mb-2">Akun Demo:</p>
                 <p className="text-sm font-mono">
                   Username: <strong>admin</strong>
                   <br />
                   Password: <strong>admin123</strong>
                 </p>
-              </div>
+              </div> */}
             </form>
           </CardContent>
         </Card>

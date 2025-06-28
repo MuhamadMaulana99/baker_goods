@@ -94,30 +94,46 @@ export default function HomePage() {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
+    const maxSize = 2 * 1024 * 1024; // 2MB
+
     if (files && files.length > 0) {
       const fileArray = Array.from(files);
 
-      const promises: Promise<string>[] = fileArray.map((file: File) => {
-        return new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = () => {
-            if (typeof reader.result === "string") {
-              resolve(reader.result);
-            } else {
-              reject("Failed to convert file to base64.");
-            }
-          };
-          reader.onerror = (error) => reject(error);
-        });
+      // Filter file valid (maks 2MB)
+      const validFiles = fileArray.filter((file) => {
+        if (file.size > maxSize) {
+          toast.error(`❌ File "${file.name}" melebihi batas 2MB!`);
+          return false;
+        }
+        return true;
       });
 
-      Promise.all(promises).then((base64Files: string[]) => {
-        setFormData((prev) => ({
-          ...prev,
-          image: base64Files[0], // hanya ambil file pertama
-        }));
-      });
+      if (validFiles.length === 0) {
+        toast.error("⚠️ Tidak ada file valid yang diunggah.");
+        return;
+      }
+
+      const file = validFiles[0];
+      const reader = new FileReader();
+
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          setFormData((prev: any) => ({
+            ...prev,
+            image: reader.result,
+          }));
+
+          toast.success(`✅ File "${file.name}" berhasil diunggah!`);
+        } else {
+          toast.error("❌ Gagal mengonversi file ke base64.");
+        }
+      };
+
+      reader.onerror = (error) => {
+        console.error("FileReader error:", error);
+        toast.error("❌ Terjadi kesalahan saat membaca file.");
+      };
     }
   };
 
@@ -266,7 +282,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">Baker Goods</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Kayu Manis Baked Goods</h1>
             </div>
             <nav className="flex space-x-4">
               <Link href="/track">
@@ -291,10 +307,10 @@ export default function HomePage() {
                 <FileText className="w-5 h-5" />
                 Kirim Pengaduan
               </CardTitle>
-              <CardDescription>
+              {/* <CardDescription>
                 Isi formulir berikut untuk mengajukan pengaduan. Anda akan
                 menerima kode pelacakan untuk memantau statusnya.
-              </CardDescription>
+              </CardDescription> */}
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -466,28 +482,58 @@ export default function HomePage() {
                     <Label htmlFor="files">File Pendukung (Opsional)</Label>
                     <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                       <div className="space-y-1 text-center">
-                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                        <div className="flex text-sm text-gray-600">
-                          <label
-                            htmlFor="files"
-                            className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500"
-                          >
-                            <span>Unggah file</span>
-                            <input
-                              id="files"
-                              type="file"
-                              multiple
-                              // value={formData.image}
-                              className="sr-only"
-                              onChange={handleFileUpload}
-                              accept="image/*,.pdf,.doc,.docx"
+                        {!formData.image && (
+                          <>
+                            <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                            <div className="mt-4 text-center">
+                              <div className="flex text-sm text-gray-600">
+                                <label
+                                  htmlFor="files"
+                                  className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500"
+                                >
+                                  <span>Unggah file</span>
+                                  <input
+                                    id="files"
+                                    type="file"
+                                    // value={formData.image}
+                                    className="sr-only"
+                                    onChange={handleFileUpload}
+                                    accept="image/*"
+                                  />
+                                </label>
+                                <p className="pl-1">atau seret ke sini</p>
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                PNG, JPG, maksimal 10MB per file
+                              </p>
+                            </div>
+                          </>
+                        )}
+
+                        {formData.image && (
+                          <div className="mt-4 text-center">
+                            <p className="text-sm text-gray-700 font-medium">
+                              {/* File: {formData?.image} */}
+                            </p>
+                            <img
+                              src={formData.image}
+                              alt="Preview"
+                              className="mt-2 mx-auto h-16 rounded object-contain border"
                             />
-                          </label>
-                          <p className="pl-1">atau seret ke sini</p>
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          PNG, JPG, PDF maksimal 10MB per file
-                        </p>
+                            <button
+                              onClick={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  image: "",
+                                  imageName: "",
+                                }))
+                              }
+                              className="mt-2 text-red-500 hover:underline text-sm"
+                            >
+                              Hapus file
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -540,6 +586,10 @@ export default function HomePage() {
 
             <Card>
               <CardHeader>
+                <CardDescription>
+                  Isi formulir berikut untuk mengajukan pengaduan. Anda akan
+                  menerima kode pelacakan untuk memantau statusnya.
+                </CardDescription>
                 <CardTitle>Bagaimana Cara Kerjanya?</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -561,7 +611,8 @@ export default function HomePage() {
                   <div>
                     <h4 className="font-medium">Dapatkan Kode Pelacakan</h4>
                     <p className="text-sm text-gray-600">
-                      Terima kode unik untuk melacak pengaduan
+                      Terima kode unik langsung ke whatsApp anda untuk melacak
+                      pengaduan
                     </p>
                   </div>
                 </div>
@@ -572,7 +623,8 @@ export default function HomePage() {
                   <div>
                     <h4 className="font-medium">Pantau Proses</h4>
                     <p className="text-sm text-gray-600">
-                      Lihat pembaruan status dan tanggapan
+                      Lihat pembaruan status dan tanggapan yang otomatis
+                      dikirimkan oleh whatsApp
                     </p>
                   </div>
                 </div>
