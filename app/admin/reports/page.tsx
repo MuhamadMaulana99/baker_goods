@@ -462,8 +462,8 @@ export default function ReportsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Distribusi Kategori Pengaduan</CardTitle>
-              <CardDescription>Kategori pengaduan terbanyak</CardDescription>
+              <CardTitle>Distribusi Kategori Produk</CardTitle>
+              <CardDescription>Kategori Produk terbanyak</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
