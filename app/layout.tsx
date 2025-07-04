@@ -27,6 +27,15 @@ export default function RootLayout({
             },
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+                if (typeof self === 'undefined') {
+                  var self = {};
+                }
+              `,
+          }}
+        />
       </body>
     </html>
   );
